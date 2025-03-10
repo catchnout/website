@@ -1,0 +1,58 @@
+#cloud-config
+packages:
+- unattended-upgrades
+- fail2ban
+- ufw
+package_reboot_if_required: true
+package_update: true
+package_upgrade: true
+users:
+- name: tech
+  groups:
+  - sudo
+  sudo:
+  - ALL=(ALL:ALL) NOPASSWD:ALL
+  ssh_authorized_keys:
+  - ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIPJkMKXjC4dnmG/etHhOpfuyq7Q6PuvAtWyPt8nU3qyq
+  lock_passwd: true
+- name: deploy
+  ssh_authorized_keys:
+  - ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIA3zr0q3A3qFlGtD15FPQHsIsDC3PFvVNUY2Jeky6v+a
+  groups:
+  - sudo
+  sudo:
+  - "ALL=(root) NOPASSWD: /usr/bin/docker"
+  lock_passwd: true
+allow_public_ssh_keys: true
+disable_root: true
+ssh_pwauth: false
+chpasswd:
+  expire: true
+write_files:
+- path: /etc/ssh/sshd_config
+  content: |
+    Include /etc/ssh/sshd_config.d/*.conf
+    UsePAM yes
+    PrintMotd no
+    DebianBanner no
+    AcceptEnv LANG LC_*
+    Subsystem       sftp    /usr/lib/openssh/sftp-server
+    PubkeyAuthentication yes
+    PasswordAuthentication no
+    PermitRootLogin no
+    KbdInteractiveAuthentication no
+    ChallengeResponseAuthentication no
+    MaxAuthTries 2
+    AllowTcpForwarding no
+    X11Forwarding no
+    AllowAgentForwarding no
+runcmd:
+- cp /etc/fail2ban/jail.conf /etc/fail2ban/jail.local
+- systemctl enable unattended-upgrades
+- systemctl start unattended-upgrades
+- systemctl enable fail2ban
+- ufw default deny incoming
+- ufw default allow outgoing
+- ufw allow OpenSSH
+- ufw enable
+- reboot
